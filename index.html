@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Générateur de QR Code</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+    input {
+      padding: 10px;
+      margin: 10px;
+      width: 80%;
+      max-width: 300px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 10px 20px;
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    #qrcode {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Générateur de QR Code</h1>
+
+  <form id="form">
+    <input type="text" id="prenom" placeholder="Prénom" required><br>
+    <input type="text" id="nom" placeholder="Nom" required><br>
+    <input type="tel" id="tel" placeholder="Numéro de téléphone" required><br>
+    <button type="submit">Générer</button>
+  </form>
+
+  <div id="qrcode"></div>
+
+  <script>
+    const form = document.getElementById("form");
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const prenom = document.getElementById("prenom").value.trim();
+      const nom = document.getElementById("nom").value.trim();
+      const tel = document.getElementById("tel").value.trim();
+
+      if (!prenom || !nom || !tel) {
+        alert("Tous les champs sont obligatoires.");
+        return;
+      }
+
+      const infos = `Nom: ${nom}\nPrénom: ${prenom}\nTéléphone: ${tel}`;
+
+      document.getElementById("qrcode").innerHTML = "";
+
+      new QRCode(document.getElementById("qrcode"), {
+        text: infos,
+        width: 256,
+        height: 256,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+    });
+  </script>
+
+</body>
+</html>
