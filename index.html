@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Générateur de QR Code</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
     body {
-      background: #111;
-      color: #fff;
+      background-color: #121212;
+      color: white;
       font-family: Arial, sans-serif;
       text-align: center;
       padding: 40px;
@@ -18,22 +18,19 @@
       width: 80%;
       max-width: 300px;
       border-radius: 5px;
-      border: 1px solid #ccc;
-      font-size: 16px;
+      border: none;
     }
     button {
       padding: 10px 20px;
-      background: #3498db;
+      background-color: #00b894;
       color: white;
       border: none;
-      cursor: pointer;
       border-radius: 5px;
       font-size: 16px;
+      cursor: pointer;
     }
     #qrcode {
       margin-top: 30px;
-      display: flex;
-      justify-content: center;
     }
   </style>
 </head>
@@ -44,14 +41,16 @@
   <form id="form">
     <input type="text" id="prenom" placeholder="Prénom" required><br>
     <input type="text" id="nom" placeholder="Nom" required><br>
-    <input type="tel" id="tel" placeholder="Numéro de téléphone" required><br>
-    <button type="submit">Générer</button>
+    <input type="tel" id="tel" placeholder="Téléphone" required><br>
+    <button type="submit">Générer QR Code</button>
   </form>
 
-  <div id="qrcode"></div>
+  <canvas id="qrcode"></canvas>
 
   <script>
     const form = document.getElementById("form");
+    const canvas = document.getElementById("qrcode");
+
     form.addEventListener("submit", function(e) {
       e.preventDefault();
 
@@ -60,22 +59,18 @@
       const tel = document.getElementById("tel").value.trim();
 
       if (!prenom || !nom || !tel) {
-        alert("Tous les champs sont obligatoires.");
+        alert("Veuillez remplir tous les champs.");
         return;
       }
 
-      const infos = `Nom: ${nom}\nPrénom: ${prenom}\nTéléphone: ${tel}`;
+      const contenu = `Nom: ${nom}\nPrénom: ${prenom}\nTéléphone: ${tel}`;
 
-      const qrDiv = document.getElementById("qrcode");
-      qrDiv.innerHTML = ""; // Vider l'ancien QR si y'en avait un
-
-      new QRCode(qrDiv, {
-        text: infos,
-        width: 256,
-        height: 256,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
+      // Générer le QR code dans le canvas
+      QRCode.toCanvas(canvas, contenu, { width: 256, color: { dark: '#000000', light: '#ffffff' } }, function (error) {
+        if (error) {
+          console.error(error);
+          alert("Erreur lors de la génération du QR Code.");
+        }
       });
     });
   </script>
