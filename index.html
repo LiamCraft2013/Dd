@@ -19,6 +19,7 @@
       max-width: 300px;
       border-radius: 5px;
       border: 1px solid #ccc;
+      font-size: 16px;
     }
     button {
       padding: 10px 20px;
@@ -31,6 +32,8 @@
     }
     #qrcode {
       margin-top: 30px;
+      display: flex;
+      justify-content: center;
     }
   </style>
 </head>
@@ -63,9 +66,10 @@
 
       const infos = `Nom: ${nom}\nPrénom: ${prenom}\nTéléphone: ${tel}`;
 
-      document.getElementById("qrcode").innerHTML = "";
+      const qrDiv = document.getElementById("qrcode");
+      qrDiv.innerHTML = ""; // Vider l'ancien QR si y'en avait un
 
-      new QRCode(document.getElementById("qrcode"), {
+      new QRCode(qrDiv, {
         text: infos,
         width: 256,
         height: 256,
