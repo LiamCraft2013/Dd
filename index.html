@@ -33,6 +33,10 @@
     #qr {
       margin-top: 30px;
     }
+    #message {
+      margin-top: 20px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -60,14 +64,14 @@
   <div id="message"></div>
 
   <script>
-    // Init EmailJS
+    // Initialise EmailJS avec ta clé publique (remplace par ta vraie clé)
     emailjs.init("b07lqfhybDnRm6dWr");
 
     function isValidVisit(date) {
       const jour = date.getDay();
       const heure = date.getHours();
 
-      if (jour === 0) return false;
+      if (jour === 0) return false; // Dimanche interdit
 
       if ([1, 2, 4, 5].includes(jour)) {
         return heure >= 9 && heure < 19;
@@ -140,7 +144,8 @@
           }
 
           const templateParams = {
-            to_email: "Schiltzliam2013@gmail.com",
+            to_email: "schiltzliam2013@gmail.com", // destinataire réel
+            from_email: "schiltzliampro2013@gmail.com", // optionnel, tu peux afficher dans le mail
             nom: nom,
             prenom: prenom,
             tel: tel,
@@ -153,8 +158,9 @@
             .then(function (response) {
               console.log('SUCCESS!', response.status, response.text);
               msgContainer.textContent = `Le QR Code a été envoyé à l’adresse suivante : ${adresse}`;
-            }, function (error) {
-              console.log('FAILED...', error);
+            })
+            .catch(function (error) {
+              console.error('Erreur EmailJS:', error);
               alert("Erreur lors de l'envoi de l'email.");
             });
         });
