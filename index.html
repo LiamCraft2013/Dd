@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>QR Code Visite</title>
+  <meta charset="UTF-8">
+  <title>Générateur de QR Code</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
   <style>
     body {
       background-color: #121212;
-      color: white;
+      color: #fff;
       font-family: Arial, sans-serif;
       text-align: center;
       padding: 30px;
     }
-    input {
+    input, select {
       margin: 10px;
       padding: 10px;
       font-size: 16px;
@@ -33,6 +32,25 @@
     #qr {
       margin-top: 30px;
     }
+    .planning {
+      margin-top: 30px;
+      border: 1px solid #555;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: #1e1e1e;
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      color: white;
+    }
+    td, th {
+      border: 1px solid #444;
+      padding: 8px;
+    }
   </style>
 </head>
 <body>
@@ -43,22 +61,41 @@
     <input type="text" id="nom" placeholder="Nom" required /><br />
     <input type="tel" id="tel" placeholder="Numéro de téléphone" required /><br />
     <label for="visite">Date et heure de la visite :</label><br />
-    <input type="datetime-local" id="visite" required /><br /><br />
+    <input type="datetime-local" id="visite" required /><br />
     <button type="submit">Générer</button>
   </form>
 
   <div id="qr"></div>
   <div id="message"></div>
 
-  <script>
-    // Init EmailJS
-    emailjs.init("b07lqfhybDnRm6dWr"); // ← Ta clé publique ici
+  <div class="planning">
+    <h2>Horaires disponibles</h2>
+    <table>
+      <tr><th>Jour</th><th>Horaires</th></tr>
+      <tr><td>Lundi</td><td>09h00 - 19h00</td></tr>
+      <tr><td>Mardi</td><td>09h00 - 19h00</td></tr>
+      <tr><td>Mercredi</td><td>09h00 - 19h00</td></tr>
+      <tr><td>Jeudi</td><td>09h00 - 19h00</td></tr>
+      <tr><td>Vendredi</td><td>09h00 - 19h00</td></tr>
+      <tr><td>Samedi</td><td>10h00 - 16h00</td></tr>
+      <tr><td>Dimanche</td><td>Fermé</td></tr>
+    </table>
+  </div>
 
+  <script>
     function isValidVisit(date) {
       const jour = date.getDay();
       const heure = date.getHours();
+
       if (jour === 0) return false;
-      return heure >= 9 && heure < 19;
+
+      if ([1, 2, 3, 4, 5].includes(jour)) {
+        return heure >= 9 && heure < 19;
+      } else if (jour === 6) {
+        return heure >= 10 && heure < 16;
+      }
+
+      return false;
     }
 
     document.getElementById('qrForm').addEventListener('submit', function (e) {
@@ -76,42 +113,26 @@
 
       const visiteDate = new Date(visiteRaw);
       if (!isValidVisit(visiteDate)) {
-        alert("Date invalide. Choisis un jour entre lundi et samedi entre 9h et 19h.");
+        alert('Date invalide. Choisis un créneau autorisé.');
         return;
       }
 
       const data = `Nom: ${nom}\nPrénom: ${prenom}\nTéléphone: ${tel}\nVisite: ${visiteDate.toLocaleString()}`;
+
       const qrContainer = document.getElementById('qr');
       const msgContainer = document.getElementById('message');
       qrContainer.innerHTML = '';
       msgContainer.innerHTML = '';
 
-      // Génération du QR
       QRCode.toCanvas(data, { width: 256 }, function (err, canvas) {
         if (err) {
           console.error(err);
-          alert('Erreur lors de la génération du QR Code.');
+          alert('Erreur QR Code.');
           return;
         }
         qrContainer.appendChild(canvas);
-        msgContainer.textContent = 'QR Code généré avec succès ✅';
+        msgContainer.textContent = 'QR Code généré avec succès. 📱';
       });
-
-      // Envoi de l'e-mail sans image
-      const templateParams = {
-        prenom: prenom,
-        nom: nom,
-        tel: tel,
-        visite: visiteDate.toLocaleString()
-      };
-
-      emailjs.send('service_ji923t8', 'template_yijyjzj', templateParams)
-        .then(function (response) {
-          console.log('Email envoyé avec succès !', response.status, response.text);
-        }, function (error) {
-          console.error("Erreur lors de l'envoi de l'email :", error);
-          alert("Erreur lors de l'envoi de l'email. Vérifie la console.");
-        });
     });
   </script>
 </body>
