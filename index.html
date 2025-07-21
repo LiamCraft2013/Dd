@@ -1,84 +1,212 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Générateur de QR Code</title>
+  <meta charset="UTF-8" />
+  <title>Générateur de QR Code chill</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
+    /* Background arc-en-ciel doux qui bouge lentement */
+    @keyframes rainbowShift {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
     body {
-      background-color: #121212;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      text-align: center;
+      margin: 0;
       padding: 30px;
+      font-family: 'Arial Black', Arial, sans-serif;
+      text-align: center;
+      color: #222;
+      background: linear-gradient(270deg, #a3d5ff, #b8ffd1, #fff2a3, #ffb8a3, #d3a3ff);
+      background-size: 1000% 1000%;
+      animation: rainbowShift 30s ease infinite;
+      overflow-x: hidden;
     }
+
+    /* Titre avec glow léger et pulse relax */
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      animation: pulseGlow 4s ease-in-out infinite;
+      color: #3a3a3a;
+      text-shadow:
+        0 0 5px #a3d5ff,
+        0 0 10px #a3d5ff;
+    }
+    @keyframes pulseGlow {
+      0%, 100% {
+        text-shadow:
+          0 0 5px #a3d5ff,
+          0 0 10px #a3d5ff;
+      }
+      50% {
+        text-shadow:
+          0 0 8px #79c3ff,
+          0 0 15px #79c3ff;
+      }
+    }
+
+    /* Formulaire avec fond blanc transparent et shadow légère */
+    form {
+      background: rgba(255, 255, 255, 0.85);
+      padding: 25px 40px;
+      border-radius: 12px;
+      display: inline-block;
+      box-shadow: 0 0 20px rgba(100, 150, 255, 0.3);
+      animation: fadeSlideUp 1.5s ease forwards;
+      color: #333;
+    }
+    @keyframes fadeSlideUp {
+      0% {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     input, select {
-      margin: 10px;
-      padding: 10px;
-      font-size: 16px;
-      width: 250px;
-      border-radius: 4px;
-      border: 1px solid #555;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #3498db;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    #qr {
-      margin-top: 30px;
-    }
-    .planning {
-      margin-top: 30px;
-      border: 1px solid #555;
-      padding: 20px;
+      margin: 12px 0;
+      padding: 12px 14px;
+      font-size: 18px;
+      width: 280px;
       border-radius: 8px;
-      background-color: #1e1e1e;
+      border: 2px solid #aaa;
+      background: #f9f9f9;
+      color: #222;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    input:focus, select:focus {
+      border-color: #79c3ff;
+      box-shadow: 0 0 8px #79c3ffaa;
+      background: #fff;
+    }
+
+    button {
+      margin-top: 18px;
+      padding: 14px 36px;
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(45deg, #79c3ff, #a3d5ff);
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 15px #79c3ffaa;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      user-select: none;
+    }
+    button:hover {
+      transform: scale(1.07);
+      box-shadow: 0 0 25px #79c3ffcc;
+    }
+
+    /* QR code container simple avec shadow douce */
+    #qr {
+      margin-top: 40px;
+      display: inline-block;
+      padding: 15px;
+      border-radius: 15px;
+      background: white;
+      box-shadow: 0 0 20px #79c3ff44;
+    }
+
+    /* Message doux fade-in */
+    #message {
+      margin-top: 25px;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #4a90e2;
+      opacity: 0;
+      animation: fadeInMsg 1.5s ease forwards;
+    }
+    #message.show {
+      opacity: 1;
+    }
+    @keyframes fadeInMsg {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+
+    /* Table des horaires plus soft */
+    .planning {
+      margin: 40px auto 0 auto;
       width: fit-content;
-      margin-left: auto;
-      margin-right: auto;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 3px solid #79c3ff88;
+      background: #f0f8ffcc;
+      box-shadow: 0 0 10px #79c3ff33 inset;
+      color: #222;
     }
     table {
-      width: 100%;
       border-collapse: collapse;
-      color: white;
+      font-weight: 600;
+      font-size: 1.1rem;
+      min-width: 320px;
+      user-select: none;
     }
-    td, th {
-      border: 1px solid #444;
-      padding: 8px;
+    th, td {
+      border: 1px solid #a0c4ff88;
+      padding: 12px 18px;
+      transition: background-color 0.3s ease;
+    }
+    tr:hover td {
+      background: #b3d4ffaa;
+      color: #1a1a1a;
     }
   </style>
 </head>
 <body>
-  <h1>Générateur de QR Code</h1>
+  <h1>Générateur de QR Code chill wesh</h1>
 
   <form id="qrForm">
-    <input type="text" id="prenom" placeholder="Prénom" required /><br />
-    <input type="text" id="nom" placeholder="Nom" required /><br />
-    <input type="tel" id="tel" placeholder="Numéro de téléphone" required /><br />
-    <label for="visite">Date et heure de la visite :</label><br />
-    <input type="datetime-local" id="visite" required /><br />
-    <button type="submit">Générer</button>
+    <input type="text" id="prenom" placeholder="Prénom" required autocomplete="off" />
+    <br />
+    <input type="text" id="nom" placeholder="Nom" required autocomplete="off" />
+    <br />
+    <input type="tel" id="tel" placeholder="Numéro de téléphone" required autocomplete="off" />
+    <br />
+    <label for="visite" style="font-weight: 700; font-size: 1rem; display: block; margin-top: 10px; margin-bottom: 5px; color: #3a3a3a;">
+      Date & heure de la visite :
+    </label>
+    <input type="datetime-local" id="visite" required />
+    <br />
+    <button type="submit">Générer le QR Code</button>
   </form>
 
   <div id="qr"></div>
   <div id="message"></div>
 
   <div class="planning">
-    <h2>Horaires disponibles</h2>
+    <h2 style="margin-bottom: 15px; color: #3a3a3a;">Horaires disponibles</h2>
     <table>
-      <tr><th>Jour</th><th>Horaires</th></tr>
-      <tr><td>Lundi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Mardi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Mercredi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Jeudi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Vendredi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Samedi</td><td>10h00 - 16h00</td></tr>
-      <tr><td>Dimanche</td><td>Fermé</td></tr>
+      <thead>
+        <tr>
+          <th>Jour</th>
+          <th>Horaires</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Lundi</td><td>09h00 - 19h00</td></tr>
+        <tr><td>Mardi</td><td>09h00 - 19h00</td></tr>
+        <tr><td>Mercredi</td><td>09h00 - 19h00</td></tr>
+        <tr><td>Jeudi</td><td>09h00 - 19h00</td></tr>
+        <tr><td>Vendredi</td><td>09h00 - 19h00</td></tr>
+        <tr><td>Samedi</td><td>10h00 - 16h00</td></tr>
+        <tr><td>Dimanche</td><td>Fermé</td></tr>
+      </tbody>
     </table>
   </div>
 
@@ -107,13 +235,13 @@
       const visiteRaw = document.getElementById('visite').value;
 
       if (!prenom || !nom || !tel || !visiteRaw) {
-        alert('Tous les champs sont obligatoires.');
+        alert('Remplis tous les champs, frérot.');
         return;
       }
 
       const visiteDate = new Date(visiteRaw);
       if (!isValidVisit(visiteDate)) {
-        alert('Date invalide. Choisis un créneau autorisé.');
+        alert('Créneau pas valide, choisis un horaire autorisé.');
         return;
       }
 
@@ -122,16 +250,18 @@
       const qrContainer = document.getElementById('qr');
       const msgContainer = document.getElementById('message');
       qrContainer.innerHTML = '';
-      msgContainer.innerHTML = '';
+      msgContainer.classList.remove('show');
+      msgContainer.textContent = '';
 
       QRCode.toCanvas(data, { width: 256 }, function (err, canvas) {
         if (err) {
           console.error(err);
-          alert('Erreur QR Code.');
+          alert('Erreur QR Code, gros.');
           return;
         }
         qrContainer.appendChild(canvas);
-        msgContainer.textContent = 'QR Code généré avec succès. 📱';
+        msgContainer.textContent = 'QR Code généré avec succès. ✌️';
+        msgContainer.classList.add('show');
       });
     });
   </script>
