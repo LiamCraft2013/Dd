@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Générateur de QR Code</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
   <style>
     body {
       background-color: #121212;
@@ -59,18 +60,19 @@
   <div id="message"></div>
 
   <script>
+    // Init EmailJS
+    emailjs.init("b07lqfhybDnRm6dWr");
+
     function isValidVisit(date) {
-      const jour = date.getDay(); // 0 = dimanche, 1 = lundi, ...
+      const jour = date.getDay();
       const heure = date.getHours();
 
-      if (jour === 0) return false; // dimanche interdit
+      if (jour === 0) return false;
 
       if ([1, 2, 4, 5].includes(jour)) {
-        // lundi, mardi, jeudi, vendredi → 17h-19h
-        return heure >= 9 && heure < 19;
+        return heure >= 17 && heure < 19;
       } else if ([3, 6].includes(jour)) {
-        // mercredi, samedi → 12h-19h
-        return heure >= 9 && heure < 19;
+        return heure >= 12 && heure < 19;
       }
 
       return false;
@@ -129,7 +131,33 @@
           alert("L'adresse est requise pour l'envoi.");
           return;
         }
-        msgContainer.textContent = `Le QR Code sera envoyé à l’adresse suivante : ${adresse}`;
+
+        QRCode.toDataURL(data, function (err, url) {
+          if (err) {
+            console.error(err);
+            alert('Erreur QR Code.');
+            return;
+          }
+
+          const templateParams = {
+            to_email: "Schiltzliam2013@gmail.com",
+            nom: nom,
+            prenom: prenom,
+            tel: tel,
+            visite: visiteDate.toLocaleString(),
+            adresse: adresse,
+            qrcode_image: url
+          };
+
+          emailjs.send('service_jj923t8', 'template_yijyjzj', templateParams)
+            .then(function (response) {
+              console.log('SUCCESS!', response.status, response.text);
+              msgContainer.textContent = `Le QR Code a été envoyé à l’adresse suivante : ${adresse}`;
+            }, function (error) {
+              console.log('FAILED...', error);
+              alert("Erreur lors de l'envoi de l'email.");
+            });
+        });
       }
     });
   </script>
