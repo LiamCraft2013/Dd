@@ -70,9 +70,9 @@
       if (jour === 0) return false;
 
       if ([1, 2, 4, 5].includes(jour)) {
-        return heure >= 17 && heure < 19;
+        return heure >= 9 && heure < 19;
       } else if ([3, 6].includes(jour)) {
-        return heure >= 12 && heure < 19;
+        return heure >= 9 && heure < 19;
       }
 
       return false;
