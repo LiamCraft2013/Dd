@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>Générateur de QR Code</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
   <style>
     body {
       background-color: #121212;
@@ -33,10 +32,6 @@
     #qr {
       margin-top: 30px;
     }
-    #message {
-      margin-top: 20px;
-      font-weight: bold;
-    }
   </style>
 </head>
 <body>
@@ -64,14 +59,11 @@
   <div id="message"></div>
 
   <script>
-    // Initialise EmailJS avec ta clé publique (remplace par ta vraie clé)
-    emailjs.init("b07lqfhybDnRm6dWr");
-
     function isValidVisit(date) {
       const jour = date.getDay();
       const heure = date.getHours();
 
-      if (jour === 0) return false; // Dimanche interdit
+      if (jour === 0) return false;
 
       if ([1, 2, 4, 5].includes(jour)) {
         return heure >= 9 && heure < 19;
@@ -143,9 +135,10 @@
             return;
           }
 
-          const templateParams = {
-            to_email: "schiltzliam2013@gmail.com", // destinataire réel
-            from_email: "schiltzliampro2013@gmail.com", // optionnel, tu peux afficher dans le mail
+          // Données à envoyer dans le POST fetch
+          const postData = {
+            to_email: "schiltzliam2013@gmail.com",
+            from_email: "schiltzliampro2013@gmail.com",
             nom: nom,
             prenom: prenom,
             tel: tel,
@@ -154,15 +147,20 @@
             qrcode_image: url
           };
 
-          emailjs.send('service_jj923t8', 'template_yijyjzj', templateParams)
-            .then(function (response) {
-              console.log('SUCCESS!', response.status, response.text);
-              msgContainer.textContent = `Le QR Code a été envoyé à l’adresse suivante : ${adresse}`;
-            })
-            .catch(function (error) {
-              console.error('Erreur EmailJS:', error);
-              alert("Erreur lors de l'envoi de l'email.");
-            });
+          fetch('https://jsfiddle.net/api/post/library/pure/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(postData)
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log('POST reussi:', data);
+            msgContainer.textContent = `Données envoyées en POST (mais pas un vrai email) à : ${adresse}`;
+          })
+          .catch(error => {
+            console.error('Erreur POST:', error);
+            alert('Erreur lors de l’envoi des données.');
+          });
         });
       }
     });
