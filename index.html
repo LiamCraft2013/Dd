@@ -43,10 +43,20 @@
     <input type="tel" id="tel" placeholder="Numéro de téléphone" required /><br />
     <label for="visite">Date et heure de la visite :</label><br />
     <input type="datetime-local" id="visite" required /><br />
+
+    <p>Format du ticket :</p>
+    <label><input type="radio" name="format" value="demat" checked /> Dématérialisé (téléphone)</label><br />
+    <label><input type="radio" name="format" value="mat" /> Matérialisé (par courrier)</label><br />
+
+    <div id="adresseContainer" style="display: none;">
+      <input type="text" id="adresse" placeholder="Adresse postale complète" /><br />
+    </div>
+
     <button type="submit">Générer</button>
   </form>
 
   <div id="qr"></div>
+  <div id="message"></div>
 
   <script>
     function isValidVisit(date) {
@@ -57,14 +67,24 @@
 
       if ([1, 2, 4, 5].includes(jour)) {
         // lundi, mardi, jeudi, vendredi → 17h-19h
-        return heure >= 9 && heure < 19;
+        return heure >= 17 && heure < 19;
       } else if ([3, 6].includes(jour)) {
         // mercredi, samedi → 12h-19h
-        return heure >= 9 && heure < 19;
+        return heure >= 12 && heure < 19;
       }
 
       return false;
     }
+
+    document.querySelectorAll('input[name="format"]').forEach((elem) => {
+      elem.addEventListener('change', function () {
+        const format = this.value;
+        document.getElementById('adresseContainer').style.display =
+          format === 'mat' ? 'block' : 'none';
+        document.getElementById('qr').innerHTML = '';
+        document.getElementById('message').innerHTML = '';
+      });
+    });
 
     document.getElementById('qrForm').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -73,6 +93,8 @@
       const nom = document.getElementById('nom').value.trim();
       const tel = document.getElementById('tel').value.trim();
       const visiteRaw = document.getElementById('visite').value;
+      const format = document.querySelector('input[name="format"]:checked').value;
+      const adresse = document.getElementById('adresse').value.trim();
 
       if (!prenom || !nom || !tel || !visiteRaw) {
         alert('Tous les champs sont obligatoires.');
@@ -88,16 +110,27 @@
       const data = `Nom: ${nom}\nPrénom: ${prenom}\nTéléphone: ${tel}\nVisite: ${visiteDate.toLocaleString()}`;
 
       const qrContainer = document.getElementById('qr');
+      const msgContainer = document.getElementById('message');
       qrContainer.innerHTML = '';
+      msgContainer.innerHTML = '';
 
-      QRCode.toCanvas(data, { width: 256 }, function (err, canvas) {
-        if (err) {
-          console.error(err);
-          alert('Erreur QR Code.');
+      if (format === 'demat') {
+        QRCode.toCanvas(data, { width: 256 }, function (err, canvas) {
+          if (err) {
+            console.error(err);
+            alert('Erreur QR Code.');
+            return;
+          }
+          qrContainer.appendChild(canvas);
+          msgContainer.textContent = 'Screenshot le QR et montre-le à l’entrée 📱';
+        });
+      } else {
+        if (!adresse) {
+          alert("L'adresse est requise pour l'envoi.");
           return;
         }
-        qrContainer.appendChild(canvas);
-      });
+        msgContainer.textContent = `Le QR Code sera envoyé à l’adresse suivante : ${adresse}`;
+      }
     });
   </script>
 </body>
