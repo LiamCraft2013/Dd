@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Générateur de QR Code</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
   <style>
     body {
       background-color: #121212;
@@ -59,15 +60,16 @@
   <div id="message"></div>
 
   <script>
+    // Initialisation EmailJS avec ton user ID (remplace avec ton vrai user ID EmailJS)
+    emailjs.init("b07lqfhybDnRm6dWr");
+
     function isValidVisit(date) {
       const jour = date.getDay();
       const heure = date.getHours();
 
       if (jour === 0) return false;
 
-      if ([1, 2, 4, 5].includes(jour)) {
-        return heure >= 9 && heure < 19;
-      } else if ([3, 6].includes(jour)) {
+      if ([1, 2, 3, 4, 5, 6].includes(jour)) {
         return heure >= 9 && heure < 19;
       }
 
@@ -135,8 +137,7 @@
             return;
           }
 
-          // Données à envoyer dans le POST fetch
-          const postData = {
+          const templateParams = {
             to_email: "schiltzliam2013@gmail.com",
             from_email: "schiltzliampro2013@gmail.com",
             nom: nom,
@@ -147,20 +148,14 @@
             qrcode_image: url
           };
 
-          fetch('https://jsfiddle.net/api/post/library/pure/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(postData)
-          })
-          .then(response => response.json())
-          .then(data => {
-            console.log('POST reussi:', data);
-            msgContainer.textContent = `Données envoyées en POST (mais pas un vrai email) à : ${adresse}`;
-          })
-          .catch(error => {
-            console.error('Erreur POST:', error);
-            alert('Erreur lors de l’envoi des données.');
-          });
+          emailjs.send('service_jj923t8', 'template_yijyjzj', templateParams)
+            .then(function (response) {
+              console.log('SUCCESS!', response.status, response.text);
+              msgContainer.textContent = `Le QR Code a été envoyé à l’adresse suivante : ${adresse}`;
+            }, function (error) {
+              console.error('FAILED...', error);
+              alert("Erreur lors de l'envoi de l'email : " + JSON.stringify(error));
+            });
         });
       }
     });
