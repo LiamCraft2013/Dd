@@ -60,7 +60,6 @@
   <div id="message"></div>
 
   <script>
-    // Initialisation EmailJS avec ton user ID (remplace avec ton vrai user ID EmailJS)
     emailjs.init("b07lqfhybDnRm6dWr");
 
     function isValidVisit(date) {
@@ -68,25 +67,21 @@
       const heure = date.getHours();
 
       if (jour === 0) return false;
-
-      if ([1, 2, 3, 4, 5, 6].includes(jour)) {
+      if ([1,2,3,4,5,6].includes(jour)) {
         return heure >= 9 && heure < 19;
       }
-
       return false;
     }
 
     document.querySelectorAll('input[name="format"]').forEach((elem) => {
       elem.addEventListener('change', function () {
-        const format = this.value;
-        document.getElementById('adresseContainer').style.display =
-          format === 'mat' ? 'block' : 'none';
+        document.getElementById('adresseContainer').style.display = this.value === 'mat' ? 'block' : 'none';
         document.getElementById('qr').innerHTML = '';
         document.getElementById('message').innerHTML = '';
       });
     });
 
-    document.getElementById('qrForm').addEventListener('submit', function (e) {
+    document.getElementById('qrForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
       const prenom = document.getElementById('prenom').value.trim();
@@ -114,9 +109,9 @@
       qrContainer.innerHTML = '';
       msgContainer.innerHTML = '';
 
-      if (format === 'demat') {
-        QRCode.toCanvas(data, { width: 256 }, function (err, canvas) {
-          if (err) {
+      if(format === 'demat'){
+        QRCode.toCanvas(data, {width:256}, (err, canvas) => {
+          if(err) {
             console.error(err);
             alert('Erreur QR Code.');
             return;
@@ -125,13 +120,13 @@
           msgContainer.textContent = 'Screenshot le QR et montre-le à l’entrée 📱';
         });
       } else {
-        if (!adresse) {
+        if(!adresse){
           alert("L'adresse est requise pour l'envoi.");
           return;
         }
 
-        QRCode.toDataURL(data, function (err, url) {
-          if (err) {
+        QRCode.toDataURL(data, (err, url) => {
+          if(err){
             console.error(err);
             alert('Erreur QR Code.');
             return;
@@ -148,11 +143,11 @@
             qrcode_image: url
           };
 
-          emailjs.send('service_jj923t8', 'template_yijyjzj', templateParams)
-            .then(function (response) {
+          emailjs.send('service_ji923t8', 'template_yijyjzj', templateParams)
+            .then((response) => {
               console.log('SUCCESS!', response.status, response.text);
               msgContainer.textContent = `Le QR Code a été envoyé à l’adresse suivante : ${adresse}`;
-            }, function (error) {
+            }, (error) => {
               console.error('FAILED...', error);
               alert("Erreur lors de l'envoi de l'email : " + JSON.stringify(error));
             });
