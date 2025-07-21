@@ -50,17 +50,17 @@
 
   <script>
     function isValidVisit(date) {
-      const jour = date.getDay(); // 0 = dimanche, 1 = lundi...
+      const jour = date.getDay(); // 0 = dimanche, 1 = lundi, ...
       const heure = date.getHours();
 
       if (jour === 0) return false; // dimanche interdit
 
       if ([1, 2, 4, 5].includes(jour)) {
-        return heure >= 17 && heure < 19; // lundi, mardi, jeudi, vendredi
-      }
-
-      if ([3, 6].includes(jour)) {
-        return heure >= 12 && heure < 19; // mercredi, samedi
+        // lundi, mardi, jeudi, vendredi → 17h-19h
+        return heure >= 17 && heure < 19;
+      } else if ([3, 6].includes(jour)) {
+        // mercredi, samedi → 12h-19h
+        return heure >= 12 && heure < 19;
       }
 
       return false;
@@ -79,14 +79,9 @@
         return;
       }
 
-      // ✅ corriger le décalage de fuseau horaire manuellement
-      const [dateStr, timeStr] = visiteRaw.split('T');
-      const [year, month, day] = dateStr.split('-').map(Number);
-      const [hour, minute] = timeStr.split(':').map(Number);
-      const visiteDate = new Date(year, month - 1, day, hour, minute);
-
+      const visiteDate = new Date(visiteRaw);
       if (!isValidVisit(visiteDate)) {
-        alert("Date invalide. Choisis un créneau autorisé.");
+        alert('Date invalide. Choisis un créneau autorisé.');
         return;
       }
 
