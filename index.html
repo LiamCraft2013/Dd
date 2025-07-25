@@ -1,208 +1,109 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Générateur de QR Code</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Générateur Emploi du Temps</title>
   <style>
     body {
-      background-color: #121212;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 30px;
-      overflow-x: hidden;
-    }
-
-    h1 {
-      animation: fadeInSlideDown 1s ease forwards;
-      opacity: 0;
-    }
-
-    form {
-      margin-top: 30px;
-      animation: fadeInSlideUp 1.2s ease forwards;
-      opacity: 0;
-    }
-
-    input, select {
-      margin: 10px;
-      padding: 10px;
-      font-size: 16px;
-      width: 250px;
-      border-radius: 4px;
-      border: 1px solid #555;
-      transition: border 0.3s, box-shadow 0.3s;
-    }
-
-    input:focus, select:focus {
-      border-color: #888;
-      box-shadow: 0 0 10px #8883;
-      outline: none;
-    }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #3498db;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: transform 0.3s, background-color 0.3s;
-    }
-
-    button:hover {
-      transform: scale(1.05);
-      background-color: #2980b9;
-    }
-
-    #qr {
-      margin-top: 30px;
-      animation: fadeIn 1s ease forwards;
-      opacity: 0;
-    }
-
-    #message {
-      margin-top: 20px;
-      font-weight: bold;
-    }
-
-    .planning {
-      margin-top: 30px;
-      border: 1px solid #555;
+      font-family: sans-serif;
+      background: #f4f4f4;
       padding: 20px;
-      border-radius: 8px;
-      background-color: #1e1e1e;
-      width: fit-content;
-      margin-left: auto;
-      margin-right: auto;
-      transition: transform 0.3s;
     }
-
-    .planning:hover {
-      transform: scale(1.02);
+    h1 {
+      text-align: center;
     }
-
+    label, input, button, select {
+      display: block;
+      margin: 10px auto;
+      width: 90%;
+      max-width: 400px;
+    }
+    .emploi-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .emploi {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 10px;
+      width: 300px;
+    }
+    .emploi h3 {
+      margin-top: 0;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      color: white;
     }
-
     td, th {
-      border: 1px solid #444;
-      padding: 8px;
-    }
-
-    @keyframes fadeInSlideUp {
-      0% { opacity: 0; transform: translateY(30px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes fadeInSlideDown {
-      0% { opacity: 0; transform: translateY(-30px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes fadeIn {
-      to { opacity: 1; }
+      border: 1px solid #ccc;
+      padding: 5px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <h1>Générateur de QR Code</h1>
 
-  <form id="qrForm">
-    <input type="text" id="prenom" placeholder="Prénom" required /><br />
-    <input type="text" id="nom" placeholder="Nom" required /><br />
-    <input type="tel" id="tel" placeholder="Numéro de téléphone" required /><br />
-    <label for="visite">Date et heure de la visite :</label><br />
-    <input type="datetime-local" id="visite" required /><br />
-    <label for="motif">Motif de visite :</label><br />
-    <select id="motif" required>
-      <option value="">-- Choisir une option --</option>
-      <option value="Visite et explications">Visite et explications</option>
-      <option value="Visite libre">Visite libre</option>
-      <option value="Cours modélisation">Cours modélisation</option>
-      <option value="Cours impression 3D">Cours impression 3D</option>
-      <option value="Électronique">Électronique</option>
-      <option value="Électricité">Électricité</option>
-    </select><br />
-    <button type="submit">Générer</button>
-  </form>
+  <h1>Générateur d'Emploi du Temps 📅</h1>
 
-  <div id="qr"></div>
-  <div id="message"></div>
+  <label for="profInput">Nom du Prof</label>
+  <input type="text" id="profInput" placeholder="Ex: Mme Cookie" />
 
-  <div class="planning">
-    <h2>Horaires disponibles</h2>
-    <table>
-      <tr><th>Jour</th><th>Horaires</th></tr>
-      <tr><td>Lundi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Mardi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Mercredi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Jeudi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Vendredi</td><td>09h00 - 19h00</td></tr>
-      <tr><td>Samedi</td><td>10h00 - 16h00</td></tr>
-      <tr><td>Dimanche</td><td>Fermé</td></tr>
-    </table>
-  </div>
+  <label for="classesInput">Classes (séparées par des virgules)</label>
+  <input type="text" id="classesInput" placeholder="Ex: 6e, 5e, 4e, 3e" />
+
+  <button onclick="ajouterProf()">Ajouter Prof</button>
+  <button onclick="genererEmplois()">Générer les emplois du temps</button>
+
+  <div class="emploi-container" id="emplois"></div>
 
   <script>
-    function isValidVisit(date) {
-      const jour = date.getDay();
-      const heure = date.getHours();
+    const profs = [];
 
-      if (jour === 0) return false;
-
-      if ([1, 2, 3, 4, 5].includes(jour)) {
-        return heure >= 9 && heure < 19;
-      } else if (jour === 6) {
-        return heure >= 10 && heure < 16;
+    function ajouterProf() {
+      const nom = document.getElementById("profInput").value.trim();
+      const classes = document.getElementById("classesInput").value.split(",").map(c => c.trim());
+      if (nom && classes.length > 0) {
+        profs.push({ nom, classes });
+        alert("Prof ajouté !");
+      } else {
+        alert("Remplis tous les champs !");
       }
-
-      return false;
     }
 
-    document.getElementById('qrForm').addEventListener('submit', function (e) {
-      e.preventDefault();
+    function genererEmplois() {
+      const jours = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+      const heures = ["8h-9h", "9h-10h", "10h-11h", "11h-12h", "13h-14h", "14h-15h"];
+      const emploisContainer = document.getElementById("emplois");
+      emploisContainer.innerHTML = "";
 
-      const prenom = document.getElementById('prenom').value.trim();
-      const nom = document.getElementById('nom').value.trim();
-      const tel = document.getElementById('tel').value.trim();
-      const visiteRaw = document.getElementById('visite').value;
-      const motif = document.getElementById('motif').value;
+      profs.forEach(prof => {
+        const emploi = Array(jours.length).fill().map(() =>
+          Array(heures.length).fill("")
+        );
 
-      if (!prenom || !nom || !tel || !visiteRaw || !motif) {
-        alert('Tous les champs sont obligatoires.');
-        return;
-      }
+        let coursRestants = 15;
 
-      const visiteDate = new Date(visiteRaw);
-      if (!isValidVisit(visiteDate)) {
-        alert('Date invalide. Choisis un créneau autorisé.');
-        return;
-      }
-
-      const data = `Nom: ${nom}\nPrénom: ${prenom}\nTéléphone: ${tel}\nVisite: ${visiteDate.toLocaleString()}\nMotif: ${motif}`;
-
-      const qrContainer = document.getElementById('qr');
-      const msgContainer = document.getElementById('message');
-      qrContainer.innerHTML = '';
-      msgContainer.innerHTML = '';
-
-      QRCode.toCanvas(data, { width: 256 }, function (err, canvas) {
-        if (err) {
-          console.error(err);
-          alert('Erreur QR Code.');
-          return;
+        while (coursRestants > 0) {
+          const j = Math.floor(Math.random() * jours.length);
+          const h = Math.floor(Math.random() * heures.length);
+          if (emploi[j][h] === "") {
+            emploi[j][h] = prof.classes[Math.floor(Math.random() * prof.classes.length)];
+            coursRestants--;
+          }
         }
-        qrContainer.appendChild(canvas);
-        qrContainer.style.opacity = 1;
-        msgContainer.textContent = 'QR Code généré avec succès. 📱';
+
+        const div = document.createElement("div");
+        div.className = "emploi";
+        div.innerHTML = `<h3>${prof.nom}</h3><table><tr><th>Jour</th>${heures.map(h => `<th>${h}</th>`).join("")}</tr>${jours.map((jour, i) => `
+          <tr><td>${jour}</td>${emploi[i].map(c => `<td>${c || "-"}</td>`).join("")}</tr>`).join("")}</table>`;
+        emploisContainer.appendChild(div);
       });
-    });
+    }
   </script>
 </body>
 </html>
