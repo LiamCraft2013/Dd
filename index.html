@@ -1,109 +1,352 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Générateur Emploi du Temps</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f4f4f4;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-    }
-    label, input, button, select {
-      display: block;
-      margin: 10px auto;
-      width: 90%;
-      max-width: 400px;
-    }
-    .emploi-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin-top: 30px;
-    }
-    .emploi {
-      background: white;
-      border: 1px solid #ccc;
-      padding: 15px;
-      border-radius: 10px;
-      width: 300px;
-    }
-    .emploi h3 {
-      margin-top: 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    td, th {
-      border: 1px solid #ccc;
-      padding: 5px;
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Check, X, ClipboardList, Clock, MapPin, Ambulance, Trash2, Search } from "lucide-react";
 
-  <h1>Générateur d'Emploi du Temps 📅</h1>
+// --- Utils
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const sample = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  <label for="profInput">Nom du Prof</label>
-  <input type="text" id="profInput" placeholder="Ex: Mme Cookie" />
+// Weighted random pick
+function weightedPick(items) {
+  const total = items.reduce((s, it) => s + it.w, 0);
+  let r = Math.random() * total;
+  for (const it of items) {
+    if ((r -= it.w) <= 0) return it.v;
+  }
+  return items[items.length - 1].v;
+}
 
-  <label for="classesInput">Classes (séparées par des virgules)</label>
-  <input type="text" id="classesInput" placeholder="Ex: 6e, 5e, 4e, 3e" />
+// Fake data pools
+const FIRST_NAMES = [
+  "Adam","Leïla","Rayan","Nora","Amin","Sofia","Yanis","Inès","Karim","Lina",
+  "Mehdi","Aya","Bilal","Maya","Naël","Nadia","Hugo","Mounia","Ilyes","Chloé"
+];
+const LAST_NAMES = [
+  "Benali","Moreau","Dubois","Lefevre","Koulibaly","Martin","Fernandes","Mercier","Traoré","Nguyen",
+  "Girard","Chevalier","Perez","Mendes","Da Silva","Rossi","Petit","Andre","Lam","Dia"
+];
 
-  <button onclick="ajouterProf()">Ajouter Prof</button>
-  <button onclick="genererEmplois()">Générer les emplois du temps</button>
+const TASK_TYPES = [
+  { v: { key: "transfert", label: (room) => `Transfert vers salle ${room}` }, w: 30 },
+  { v: { key: "coloscopie", label: () => "Coloscopie" }, w: 14 },
+  { v: { key: "endoscopie", label: () => "Endoscopie" }, w: 16 },
+  { v: { key: "generaliste", label: () => "Consultation généraliste" }, w: 18 },
+  { v: { key: "chirurgie", label: () => "Bloc chirurgie" }, w: 10 },
+  { v: { key: "pickup_ext", label: (room) => `Aller chercher un patient – salle EXT ${room}` }, w: 8 },
+  // Rare
+  { v: { key: "frigo", label: () => "Transfert chambre frigorifique (rare)" }, w: 2 },
+];
 
-  <div class="emploi-container" id="emplois"></div>
+const ROOMS = Array.from({ length: 28 }, (_, i) => 100 + i);
+const EXT_ROOMS = Array.from({ length: 9 }, (_, i) => `E-${i + 1}`);
 
-  <script>
-    const profs = [];
+// LocalStorage helpers
+const LS_KEY = "hopital_tasks_v1";
+const saveState = (state) => localStorage.setItem(LS_KEY, JSON.stringify(state));
+const loadState = () => {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
 
-    function ajouterProf() {
-      const nom = document.getElementById("profInput").value.trim();
-      const classes = document.getElementById("classesInput").value.split(",").map(c => c.trim());
-      if (nom && classes.length > 0) {
-        profs.push({ nom, classes });
-        alert("Prof ajouté !");
-      } else {
-        alert("Remplis tous les champs !");
-      }
-    }
+export default function App() {
+  const [tasks, setTasks] = useState(() => loadState() || []);
+  const [autoSpawn, setAutoSpawn] = useState(true);
+  const [filter, setFilter] = useState("");
+  const spawnTimer = useRef(null);
 
-    function genererEmplois() {
-      const jours = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
-      const heures = ["8h-9h", "9h-10h", "10h-11h", "11h-12h", "13h-14h", "14h-15h"];
-      const emploisContainer = document.getElementById("emplois");
-      emploisContainer.innerHTML = "";
+  useEffect(() => {
+    saveState(tasks);
+  }, [tasks]);
 
-      profs.forEach(prof => {
-        const emploi = Array(jours.length).fill().map(() =>
-          Array(heures.length).fill("")
-        );
+  function makePatientName() {
+    return `${sample(FIRST_NAMES)} ${sample(LAST_NAMES).toUpperCase()}`;
+  }
 
-        let coursRestants = 15;
+  function makeTask() {
+    const type = weightedPick(TASK_TYPES);
+    const isTransfer = type.key === "transfert";
+    const isPickup = type.key === "pickup_ext";
+    const room = isTransfer ? sample(ROOMS) : isPickup ? sample(EXT_ROOMS) : null;
 
-        while (coursRestants > 0) {
-          const j = Math.floor(Math.random() * jours.length);
-          const h = Math.floor(Math.random() * heures.length);
-          if (emploi[j][h] === "") {
-            emploi[j][h] = prof.classes[Math.floor(Math.random() * prof.classes.length)];
-            coursRestants--;
-          }
-        }
+    const task = {
+      id: crypto.randomUUID(),
+      patient: makePatientName(),
+      type: type.key,
+      title: type.label(room),
+      room: room,
+      status: "en_attente", // en_attente | accepte | termine | refuse
+      createdAt: Date.now(),
+      notes: "",
+    };
+    return task;
+  }
 
-        const div = document.createElement("div");
-        div.className = "emploi";
-        div.innerHTML = `<h3>${prof.nom}</h3><table><tr><th>Jour</th>${heures.map(h => `<th>${h}</th>`).join("")}</tr>${jours.map((jour, i) => `
-          <tr><td>${jour}</td>${emploi[i].map(c => `<td>${c || "-"}</td>`).join("")}</tr>`).join("")}</table>`;
-        emploisContainer.appendChild(div);
-      });
-    }
-  </script>
-</body>
-</html
+  const spawnTask = () => setTasks((t) => [makeTask(), ...t].slice(0, 200));
+
+  // Auto spawn randomly every 10–25s
+  useEffect(() => {
+    if (!autoSpawn) return;
+    const schedule = () => {
+      const delay = rand(10000, 25000);
+      spawnTimer.current = setTimeout(() => {
+        spawnTask();
+        schedule();
+      }, delay);
+    };
+    schedule();
+    return () => clearTimeout(spawnTimer.current);
+  }, [autoSpawn]);
+
+  // Actions
+  const setStatus = (id, status) => setTasks((t) => t.map((x) => (x.id === id ? { ...x, status } : x)));
+  const setNotes = (id, notes) => setTasks((t) => t.map((x) => (x.id === id ? { ...x, notes } : x)));
+  const removeTask = (id) => setTasks((t) => t.filter((x) => x.id !== id));
+  const clearDone = () => setTasks((t) => t.filter((x) => x.status !== "termine" && x.status !== "refuse"));
+
+  const pending = tasks.filter((t) => t.status === "en_attente");
+  const accepted = tasks.filter((t) => t.status === "accepte");
+  const finished = tasks.filter((t) => t.status === "termine");
+  const refused = tasks.filter((t) => t.status === "refuse");
+
+  // Search filter
+  const filtered = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return { pending, accepted, finished, refused };
+    const sub = (arr) =>
+      arr.filter(
+        (t) =>
+          t.patient.toLowerCase().includes(q) ||
+          String(t.room || "").toLowerCase().includes(q) ||
+          t.title.toLowerCase().includes(q) ||
+          t.type.toLowerCase().includes(q)
+      );
+    return {
+      pending: sub(pending),
+      accepted: sub(accepted),
+      finished: sub(finished),
+      refused: sub(refused),
+    };
+  }, [filter, pending, accepted, finished, refused]);
+
+  // Stats
+  const stats = {
+    pending: pending.length,
+    accepted: accepted.length,
+    finished: finished.length,
+    refused: refused.length,
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">🏥 Jeu Hôpital – Gestion des Tâches</h1>
+            <p className="text-sm text-gray-600 mt-1">Accepte des tâches, termine-les, et récupère les patients en salle EXT. Des fois, un transfert rare vers la chambre frigorifique peut tomber.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={spawnTask} className="px-4 py-2 rounded-2xl shadow bg-white hover:bg-gray-100 border flex items-center gap-2">
+              <Plus size={18}/> Générer une tâche
+            </button>
+            <button onClick={() => setAutoSpawn((v) => !v)} className={`px-4 py-2 rounded-2xl shadow border flex items-center gap-2 ${autoSpawn ? "bg-green-100 border-green-300" : "bg-white hover:bg-gray-100"}`}>
+              <Clock size={18}/> Auto: {autoSpawn ? "ON" : "OFF"}
+            </button>
+            <button onClick={clearDone} className="px-4 py-2 rounded-2xl shadow bg-white hover:bg-gray-100 border flex items-center gap-2">
+              <Trash2 size={18}/> Nettoyer terminées/refusées
+            </button>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="mt-4 flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white border rounded-2xl px-3 py-2 shadow w-full md:w-1/2">
+            <Search size={18}/>
+            <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Rechercher patient, salle, type…" className="outline-none w-full"/>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <StatCard icon={<ClipboardList/>} label="En attente" value={stats.pending} />
+          <StatCard icon={<Ambulance/>} label="Acceptées" value={stats.accepted} />
+          <StatCard icon={<Check/>} label="Terminées" value={stats.finished} />
+          <StatCard icon={<X/>} label="Refusées" value={stats.refused} />
+        </div>
+
+        {/* Columns */}
+        <div className="grid md:grid-cols-3 gap-5 mt-6">
+          <Column title="En attente" hint="Choisis quoi prendre" items={filtered.pending} empty="R à sig, ça va tomber…">
+            {(t) => (
+              <TaskCard key={t.id} t={t}
+                actions={
+                  <div className="flex gap-2">
+                    <Btn onClick={() => setStatus(t.id, "accepte")}><Check size={16}/> Accepter</Btn>
+                    <Btn ghost onClick={() => setStatus(t.id, "refuse")}><X size={16}/> Refuser</Btn>
+                  </div>
+                }
+              />
+            )}
+          </Column>
+
+          <Column title="Acceptées" hint="Va faire le taf" items={filtered.accepted} empty="Prends une mission à gauche">
+            {(t) => (
+              <TaskCard key={t.id} t={t}
+                actions={
+                  <div className="flex gap-2 flex-wrap">
+                    {t.type === "pickup_ext" && (
+                      <Btn onClick={() => alert(`Direction salle EXT ${t.room} pour récupérer ${t.patient}`)}>
+                        <MapPin size={16}/> Aller chercher
+                      </Btn>
+                    )}
+                    <Btn onClick={() => setStatus(t.id, "termine")}>
+                      <Check size={16}/> Terminer
+                    </Btn>
+                    <Btn ghost onClick={() => setStatus(t.id, "refuse")}>
+                      <X size={16}/> Annuler
+                    </Btn>
+                  </div>
+                }
+                notesSlot={
+                  <textarea
+                    className="w-full mt-2 border rounded-xl p-2 text-sm"
+                    placeholder="Notes (ex: heure de départ, anomalies, etc.)"
+                    value={t.notes}
+                    onChange={(e) => setNotes(t.id, e.target.value)}
+                  />
+                }
+              />
+            )}
+          </Column>
+
+          <Column title="Historique" hint="Ce qui est plié" items={[...filtered.finished, ...filtered.refused]}
+                  empty="Rien pour le moment">
+            {(t) => (
+              <TaskCard key={t.id} t={t}
+                actions={
+                  <div className="flex gap-2">
+                    <Btn ghost onClick={() => removeTask(t.id)}>
+                      <Trash2 size={16}/> Supprimer
+                    </Btn>
+                  </div>
+                }
+              />
+            )}
+          </Column>
+        </div>
+
+        {/* Footer tips */}
+        <div className="mt-8 text-xs text-gray-500">
+          <p>
+            Astuce: active l'auto pour recevoir des tâches au hasard toutes les ~10-25 secondes.
+            Les transferts frigorifique sont très rares. Toutes les données restent en local (navigateur).
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value }) {
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow border flex items-center gap-3">
+      <div className="p-2 rounded-xl bg-gray-100">{icon}</div>
+      <div>
+        <div className="text-xs text-gray-500">{label}</div>
+        <div className="text-xl font-bold">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function Column({ title, hint, items, empty, children }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <span className="text-xs text-gray-500">{hint}</span>
+      </div>
+      <div className="grid gap-3">
+        <AnimatePresence>
+          {items.length === 0 ? (
+            <EmptyCard text={empty} />
+          ) : (
+            items.map((t) => (
+              <motion.div
+                key={t.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+              >
+                {children(t)}
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function TaskCard({ t, actions, notesSlot }) {
+  const badge = {
+    en_attente: { txt: "En attente", cls: "bg-yellow-100 text-yellow-800 border-yellow-300" },
+    accepte: { txt: "Acceptée", cls: "bg-blue-100 text-blue-800 border-blue-300" },
+    termine: { txt: "Terminée", cls: "bg-green-100 text-green-800 border-green-300" },
+    refuse: { txt: "Refusée", cls: "bg-gray-100 text-gray-700 border-gray-300" },
+  }[t.status];
+
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow border">
+      <div className="flex justify-between items-start gap-3">
+        <div>
+          <div className="text-sm text-gray-500 flex items-center gap-2">
+            <MapPin size={16}/>
+            {t.room ? <span>Salle <b>{t.room}</b></span> : <span>—</span>}
+          </div>
+          <div className="mt-1 text-lg font-semibold">{t.title}</div>
+          <div className="text-sm text-gray-700">👤 {t.patient}</div>
+        </div>
+        <span className={`text-xs px-2 py-1 rounded-xl border ${badge.cls}`}>{badge.txt}</span>
+      </div>
+
+      {notesSlot}
+
+      <div className="mt-3">{actions}</div>
+
+      <div className="mt-2 text-[11px] text-gray-500">Créée {timeAgo(t.createdAt)}</div>
+    </div>
+  );
+}
+
+function EmptyCard({ text }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow border text-center text-sm text-gray-500">
+      {text}
+    </div>
+  );
+}
+
+function Btn({ children, onClick, ghost }) {
+  return (
+    <button onClick={onClick} className={`px-3 py-2 rounded-xl shadow border text-sm flex items-center gap-2 ${ghost ? "bg-white hover:bg-gray-100" : "bg-gray-900 text-white hover:bg-gray-800"}`}>
+      {children}
+    </button>
+  );
+}
+
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return `il y a ${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `il y a ${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `il y a ${h}h`;
+  const d = Math.floor(h / 24);
+  return `il y a ${d}j`;
+}
