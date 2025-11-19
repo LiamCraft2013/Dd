@@ -1,7 +1,773 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Check, X, ClipboardList, Clock, MapPin, Ambulance, Trash2, Search } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Power, Home, User, LogOut, FileText, CheckCircle, Clock, XCircle } from 'lucide-react';
 
-// --- Utils
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const sample = (arr) => arr[Math.floor(Math.random() * arr.length)];
+// Configuration Supabase - REMPLACER avec vos propres clés
+const supabaseUrl = 'VOTRE_SUPABASE_URL';
+const supabaseKey = 'VOTRE_SUPABASE_ANON_KEY';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export default function EDFRaccordement() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('login');
+  const [demandes, setDemandes] = useState([]);
+  const [allDemandes, setAllDemandes] = useState([]);
+  
+  // États pour les formulaires
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [registerData, setRegisterData] = useState({
+    email: '',
+    password: '',
+    nom: '',
+    prenom: '',
+    telephone: '',
+    adresse: ''
+  });
+  const [demandeData, setDemandeData] = useState({
+    adresse_logement: '',
+    ville: '',
+    code_postal: '',
+    surface: '',
+    type_logement: 'maison',
+    puissance_souhaitee: '6',
+    commentaires: ''
+  });
+
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadDemandes();
+    }
+  }, [user]);
+
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      setUser({ ...session.user, profile });
+      setView(profile?.role === 'admin' ? 'admin' : 'dashboard');
+    }
+    setLoading(false);
+  };
+
+  const loadDemandes = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profile?.role === 'admin') {
+      const { data } = await supabase
+        .from('demandes_raccordement')
+        .select(`
+          *,
+          profiles (nom, prenom, email, telephone, adresse)
+        `)
+        .order('created_at', { ascending: false });
+      setAllDemandes(data || []);
+    } else {
+      const { data } = await supabase
+        .from('demandes_raccordement')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+      setDemandes(data || []);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const { data, error } = await supabase.auth.signInWithPassword(loginData);
+    if (error) {
+      alert('Erreur de connexion: ' + error.message);
+    } else {
+      await checkUser();
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: registerData.email,
+      password: registerData.password
+    });
+
+    if (authError) {
+      alert('Erreur d\'inscription: ' + authError.message);
+      return;
+    }
+
+    if (authData.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: registerData.email,
+          nom: registerData.nom,
+          prenom: registerData.prenom,
+          telephone: registerData.telephone,
+          adresse: registerData.adresse,
+          role: 'client'
+        });
+
+      if (profileError) {
+        alert('Erreur lors de la création du profil: ' + profileError.message);
+      } else {
+        alert('Compte créé avec succès! Vous pouvez maintenant vous connecter.');
+        setView('login');
+      }
+    }
+  };
+
+  const handleDemandeSubmit = async (e) => {
+    e.preventDefault();
+    const { error } = await supabase
+      .from('demandes_raccordement')
+      .insert({
+        ...demandeData,
+        user_id: user.id,
+        statut: 'en_attente'
+      });
+
+    if (error) {
+      alert('Erreur lors de la soumission: ' + error.message);
+    } else {
+      alert('Demande de raccordement soumise avec succès!');
+      setDemandeData({
+        adresse_logement: '',
+        ville: '',
+        code_postal: '',
+        surface: '',
+        type_logement: 'maison',
+        puissance_souhaitee: '6',
+        commentaires: ''
+      });
+      loadDemandes();
+      setView('dashboard');
+    }
+  };
+
+  const updateStatut = async (id, newStatut) => {
+    const { error } = await supabase
+      .from('demandes_raccordement')
+      .update({ statut: newStatut })
+      .eq('id', id);
+
+    if (error) {
+      alert('Erreur: ' + error.message);
+    } else {
+      loadDemandes();
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setView('login');
+  };
+
+  const getStatutBadge = (statut) => {
+    const configs = {
+      en_attente: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, text: 'En attente' },
+      en_cours: { color: 'bg-blue-100 text-blue-800', icon: Clock, text: 'En cours' },
+      acceptee: { color: 'bg-green-100 text-green-800', icon: CheckCircle, text: 'Acceptée' },
+      refusee: { color: 'bg-red-100 text-red-800', icon: XCircle, text: 'Refusée' }
+    };
+    const config = configs[statut] || configs.en_attente;
+    const Icon = config.icon;
+    return (
+      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${config.color}`}>
+        <Icon size={16} />
+        {config.text}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <Power className="animate-spin mx-auto mb-4 text-blue-600" size={48} />
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Page de connexion
+  if (view === 'login') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-orange-500 rounded-xl mb-4">
+              <Power className="text-white" size={32} />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800">EDF Raccordement</h1>
+            <p className="text-gray-600 mt-2">Portail de gestion des raccordements</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={loginData.email}
+                onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
+              <input
+                type="password"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={loginData.password}
+                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition"
+            >
+              Se connecter
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setView('register')}
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Créer un compte client
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Page d'inscription
+  if (view === 'register') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Créer un compte client</h2>
+          
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={registerData.nom}
+                  onChange={(e) => setRegisterData({ ...registerData, nom: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Prénom</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={registerData.prenom}
+                  onChange={(e) => setRegisterData({ ...registerData, prenom: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                value={registerData.email}
+                onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
+              <input
+                type="tel"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                value={registerData.telephone}
+                onChange={(e) => setRegisterData({ ...registerData, telephone: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+              <input
+                type="text"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                value={registerData.adresse}
+                onChange={(e) => setRegisterData({ ...registerData, adresse: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                value={registerData.password}
+                onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setView('login')}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+              >
+                Retour
+              </button>
+              <button
+                type="submit"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition"
+              >
+                S'inscrire
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Dashboard client
+  if (view === 'dashboard') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50">
+        <nav className="bg-white shadow-md">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-orange-500 rounded-lg flex items-center justify-center">
+                <Power className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-800">EDF Raccordement</h1>
+                <p className="text-sm text-gray-600">Espace Client</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-gray-700">{user?.profile?.prenom} {user?.profile?.nom}</span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+              >
+                <LogOut size={18} />
+                Déconnexion
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Demandes totales</p>
+                  <p className="text-2xl font-bold text-gray-800">{demandes.length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-yellow-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">En attente</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {demandes.filter(d => d.statut === 'en_attente').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="text-green-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Acceptées</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {demandes.filter(d => d.statut === 'acceptee').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <button
+              onClick={() => setView('nouvelle-demande')}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition flex items-center gap-2"
+            >
+              <Home size={20} />
+              Nouvelle demande de raccordement
+            </button>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-800">Mes demandes de raccordement</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Adresse</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Puissance</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {demandes.map((demande) => (
+                    <tr key={demande.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(demande.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {demande.adresse_logement}, {demande.ville}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                        {demande.type_logement}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {demande.puissance_souhaitee} kVA
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatutBadge(demande.statut)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {demandes.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  Aucune demande pour le moment
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Formulaire nouvelle demande
+  if (view === 'nouvelle-demande') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">Nouvelle demande de raccordement</h2>
+            
+            <form onSubmit={handleDemandeSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Adresse du logement</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={demandeData.adresse_logement}
+                    onChange={(e) => setDemandeData({ ...demandeData, adresse_logement: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ville</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={demandeData.ville}
+                    onChange={(e) => setDemandeData({ ...demandeData, ville: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Code postal</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={demandeData.code_postal}
+                    onChange={(e) => setDemandeData({ ...demandeData, code_postal: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Surface (m²)</label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={demandeData.surface}
+                    onChange={(e) => setDemandeData({ ...demandeData, surface: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Type de logement</label>
+                  <select
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={demandeData.type_logement}
+                    onChange={(e) => setDemandeData({ ...demandeData, type_logement: e.target.value })}
+                  >
+                    <option value="maison">Maison</option>
+                    <option value="appartement">Appartement</option>
+                    <option value="local_commercial">Local commercial</option>
+                    <option value="batiment_industriel">Bâtiment industriel</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Puissance souhaitée (kVA)</label>
+                  <select
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={demandeData.puissance_souhaitee}
+                    onChange={(e) => setDemandeData({ ...demandeData, puissance_souhaitee: e.target.value })}
+                  >
+                    <option value="3">3 kVA</option>
+                    <option value="6">6 kVA</option>
+                    <option value="9">9 kVA</option>
+                    <option value="12">12 kVA</option>
+                    <option value="15">15 kVA</option>
+                    <option value="18">18 kVA</option>
+                    <option value="36">36 kVA</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Commentaires</label>
+                  <textarea
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={demandeData.commentaires}
+                    onChange={(e) => setDemandeData({ ...demandeData, commentaires: e.target.value })}
+                    placeholder="Informations complémentaires..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setView('dashboard')}
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition"
+                >
+                  Soumettre la demande
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Dashboard admin
+  if (view === 'admin') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50">
+        <nav className="bg-white shadow-md">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-orange-500 rounded-lg flex items-center justify-center">
+                <Power className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-800">EDF Raccordement</h1>
+                <p className="text-sm text-gray-600">Panneau Administrateur</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">Admin</span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+              >
+                <LogOut size={18} />
+                Déconnexion
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Total</p>
+                  <p className="text-2xl font-bold text-gray-800">{allDemandes.length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-yellow-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">En attente</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {allDemandes.filter(d => d.statut === 'en_attente').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Clock className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">En cours</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {allDemandes.filter(d => d.statut === 'en_cours').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="text-green-600" size={24} />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Acceptées</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {allDemandes.filter(d => d.statut === 'acceptee').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-800">Toutes les demandes de raccordement</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Adresse</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Surface</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Puissance</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {allDemandes.map((demande) => (
+                    <tr key={demande.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(demande.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {demande.profiles?.prenom} {demande.profiles?.nom}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div>{demande.profiles?.email}</div>
+                        <div className="text-gray-500">{demande.profiles?.telephone}</div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {demande.adresse_logement}<br />
+                        {demande.code_postal} {demande.ville}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                        {demande.type_logement.replace('_', ' ')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {demande.surface} m²
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {demande.puissance_souhaitee} kVA
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatutBadge(demande.statut)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <select
+                          value={demande.statut}
+                          onChange={(e) => updateStatut(demande.id, e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        >
+                          <option value="en_attente">En attente</option>
+                          <option value="en_cours">En cours</option>
+                          <option value="acceptee">Acceptée</option>
+                          <option value="refusee">Refusée</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {allDemandes.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  Aucune demande pour le moment
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
